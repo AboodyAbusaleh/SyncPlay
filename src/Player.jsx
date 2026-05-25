@@ -130,17 +130,25 @@ export default function Player({ token, roomCode, role }) {
       if (!data) return
       setPlayback(data)
       if (!data.trackUri || !ready || !activated) return
+      const guestApi = async (endpoint, body) => {
+        try {
+          const res = await fetch(`https://api.spotify.com/v1/me/player/${endpoint}?device_id=${deviceId}`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: body ? JSON.stringify(body) : undefined,
+          })
+          if (!res.ok) {
+            const txt = await res.text().catch(() => '')
+            console.error(`[syncplay] guest ${endpoint} HTTP ${res.status}`, txt)
+          }
+        } catch (e) {
+          console.error(`[syncplay] guest ${endpoint} threw`, e)
+        }
+      }
       if (data.isPlaying) {
-        fetch('https://api.spotify.com/v1/me/player/play', {
-          method: 'PUT',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uris: [data.trackUri], position_ms: data.position }),
-        })
+        guestApi('play', { uris: [data.trackUri], position_ms: data.position })
       } else {
-        fetch('https://api.spotify.com/v1/me/player/pause', {
-          method: 'PUT',
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        guestApi('pause')
       }
     })
     return () => unsub()
@@ -148,12 +156,26 @@ export default function Player({ token, roomCode, role }) {
 
   async function activateGuest() {
     if (!deviceId) return
-    await fetch('https://api.spotify.com/v1/me/player', {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ device_ids: [deviceId], play: false }),
-    })
-    setActivated(true)
+    try {
+      const res = await fetch('https://api.spotify.com/v1/me/player', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_ids: [deviceId], play: false }),
+      })
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        console.error('[syncplay] transfer failed', res.status, body)
+        setSdkError({
+          kind: res.status === 401 ? 'auth' : res.status === 403 ? 'account' : 'playback',
+          message: `transfer playback HTTP ${res.status}${body ? ': ' + body.slice(0, 200) : ''}`,
+        })
+        return
+      }
+      setActivated(true)
+    } catch (e) {
+      console.error('[syncplay] transfer threw', e)
+      setSdkError({ kind: 'playback', message: 'transfer playback network error' })
+    }
   }
 
   // Host — listen for guest events, then clear them

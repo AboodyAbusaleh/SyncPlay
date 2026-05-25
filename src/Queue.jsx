@@ -31,10 +31,15 @@ export default function Queue({ token, roomCode, role, onPlayNow }) {
         setResults(tracks)
         setSearchError(null)
       } catch (e) {
+        console.error('[syncplay] search error', e)
         setResults([])
-        setSearchError(e.status === 401
-          ? 'session expired — log out and back in'
-          : 'search failed — try again')
+        setSearchError(
+          e.status === 401 ? 'session expired — log out and back in' :
+          e.status === 403 ? 'spotify says forbidden (403) — token scope issue?' :
+          e.status === 429 ? 'rate limited — wait a moment' :
+          e.status         ? `search failed (HTTP ${e.status})` :
+                             'search failed (network) — check connection'
+        )
       }
       setSearching(false)
     }, 300)
