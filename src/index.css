@@ -95,6 +95,25 @@ input  { font-family: 'DM Sans', sans-serif; }
   opacity: 0.25;
 }
 
+@keyframes note-rise {
+  0%   { transform: translate(0, 0) rotate(0deg);                 opacity: 0;   }
+  10%  { opacity: 0.85; }
+  90%  { opacity: 0.85; }
+  100% { transform: translate(var(--drift, 0), -110vh) rotate(var(--spin, 360deg)); opacity: 0; }
+}
+.music-note {
+  position: absolute;
+  bottom: -50px;
+  color: var(--accent);
+  font-family: 'Cormorant Garamond', serif;
+  pointer-events: none;
+  user-select: none;
+  animation-name: note-rise;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 0.4; transform: scale(1);   }
   50%      { opacity: 1;   transform: scale(1.4); }

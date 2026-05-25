@@ -70,10 +70,69 @@ export default function App() {
   return (
     <>
       <Ambient />
+      <MusicNotes />
       {content}
       <CatGif />
       <Signature />
     </>
+  )
+}
+
+function MusicNotes() {
+  const [notes, setNotes] = useState([])
+  const NOTE_CHARS = ['♪', '♫', '♬', '♩', '𝅘𝅥']
+
+  useEffect(() => {
+    const spawn = () => {
+      const id = Date.now() + Math.random()
+      const duration = 9 + Math.random() * 7
+      const note = {
+        id,
+        char:     NOTE_CHARS[Math.floor(Math.random() * NOTE_CHARS.length)],
+        left:     Math.random() * 100,
+        size:     16 + Math.random() * 20,
+        duration,
+        drift:    (Math.random() - 0.5) * 160,
+        spin:     (Math.random() < 0.5 ? -1 : 1) * (180 + Math.random() * 540),
+      }
+      setNotes(prev => [...prev, note])
+      setTimeout(() => {
+        setNotes(prev => prev.filter(n => n.id !== id))
+      }, duration * 1000 + 200)
+    }
+
+    spawn()
+    const interval = setInterval(spawn, 1100)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        pointerEvents: 'none',
+        zIndex: 0,
+        overflow: 'hidden',
+      }}
+    >
+      {notes.map(n => (
+        <span
+          key={n.id}
+          className="music-note"
+          style={{
+            left: `${n.left}%`,
+            fontSize: `${n.size}px`,
+            animationDuration: `${n.duration}s`,
+            '--drift': `${n.drift}px`,
+            '--spin':  `${n.spin}deg`,
+          }}
+        >
+          {n.char}
+        </span>
+      ))}
+    </div>
   )
 }
 
