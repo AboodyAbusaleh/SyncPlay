@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { db } from './firebase'
-import { ref, onValue, update, get, remove } from 'firebase/database'
+import { ref, onValue, update, get, remove, set, push, onDisconnect } from 'firebase/database'
+import { getCurrentUser } from './spotify'
 import Queue from './Queue'
 
 export default function Player({ token, roomCode, role }) {
@@ -155,19 +156,35 @@ export default function Player({ token, roomCode, role }) {
     setActivated(true)
   }
 
-  // Host — listen for guest events
+  // Host — listen for guest events, then clear them
   useEffect(() => {
     if (role !== 'host') return
     const unsub = onValue(ref(db, `rooms/${roomCode}/events`), snapshot => {
       const data = snapshot.val()
       if (!data || !playerRef.current) return
-      if (Date.now() - data.requestedAt > 3000) return
       if (data.type === 'play' || data.type === 'pause') playerRef.current.togglePlay()
       if (data.type === 'next') hostNextRef.current()
       if (data.type === 'prev') playerRef.current.previousTrack()
+      remove(ref(db, `rooms/${roomCode}/events`)).catch(() => {})
     })
     return () => unsub()
   }, [role, roomCode])
+
+  // Guest — register self in guests list with onDisconnect cleanup
+  useEffect(() => {
+    if (role !== 'guest') return
+    let guestNode = null
+    ;(async () => {
+      const me = await getCurrentUser(token)
+      const name = me?.display_name || 'guest'
+      guestNode = push(ref(db, `rooms/${roomCode}/guests`))
+      await set(guestNode, { name, joinedAt: Date.now() })
+      onDisconnect(guestNode).remove()
+    })()
+    return () => {
+      if (guestNode) remove(guestNode).catch(() => {})
+    }
+  }, [role, roomCode, token])
 
   async function transferPlayback() {
     await fetch('https://api.spotify.com/v1/me/player', {

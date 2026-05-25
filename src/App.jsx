@@ -10,6 +10,7 @@ export default function App() {
   const [roomCode, setRoomCode] = useState(null)
   const [role, setRole]         = useState(null)
   const [hostName, setHostName] = useState('')
+  const [guests, setGuests]     = useState([])
   const [theme, setTheme]       = useState(() => {
     if (typeof window === 'undefined') return 'light'
     const t = localStorage.getItem('syncplay-theme')
@@ -43,6 +44,15 @@ export default function App() {
     return () => unsub()
   }, [roomCode])
 
+  useEffect(() => {
+    if (!roomCode) { setGuests([]); return }
+    const unsub = onValue(ref(db, `rooms/${roomCode}/guests`), snap => {
+      const data = snap.val() || {}
+      setGuests(Object.values(data).map(g => g.name).filter(Boolean))
+    })
+    return () => unsub()
+  }, [roomCode])
+
   let content
   if (!token) {
     content = <Login theme={theme} onToggleTheme={toggleTheme} />
@@ -59,6 +69,7 @@ export default function App() {
         roomCode={roomCode}
         role={role}
         hostName={hostName}
+        guests={guests}
         theme={theme}
         onToggleTheme={toggleTheme}
       >
@@ -407,7 +418,7 @@ function Login({ theme, onToggleTheme }) {
   )
 }
 
-function Layout({ children, onLogout, roomCode, role, hostName, theme, onToggleTheme }) {
+function Layout({ children, onLogout, roomCode, role, hostName, guests = [], theme, onToggleTheme }) {
   return (
     <div style={{ minHeight: '100vh', background: 'transparent', position: 'relative', zIndex: 1 }}>
       <header style={{
@@ -448,6 +459,27 @@ function Layout({ children, onLogout, roomCode, role, hostName, theme, onToggleT
                 ? '♡ host'
                 : `♡ guest${hostName ? ' of ' + hostName : ''}`}
             </span>
+            {guests.length > 0 && (
+              <span
+                title={guests.join(', ')}
+                style={{
+                  fontSize: '11px',
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: 'var(--mid)',
+                  opacity: 0.85,
+                  fontFamily: 'Cormorant Garamond, serif',
+                  fontStyle: 'italic',
+                }}
+              >
+                · {guests.length === 1 ? '1 listening' : `${guests.length} listening`}
+                {guests.length <= 3 && (
+                  <span style={{ marginLeft: '6px', color: 'var(--accent)', fontStyle: 'normal' }}>
+                    ({guests.join(', ')})
+                  </span>
+                )}
+              </span>
+            )}
           </div>
         )}
 
