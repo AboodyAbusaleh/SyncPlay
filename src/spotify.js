@@ -97,7 +97,11 @@ export async function searchTracks(token, query) {
   if (!query.trim()) return []
   const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=6`
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) return []
+  if (!res.ok) {
+    const err = new Error(`search failed (${res.status})`)
+    err.status = res.status
+    throw err
+  }
   const data = await res.json()
   return data.tracks?.items || []
 }

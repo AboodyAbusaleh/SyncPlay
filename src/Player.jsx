@@ -8,6 +8,7 @@ export default function Player({ token, roomCode, role }) {
   const [deviceId, setDeviceId] = useState(null)
   const [playback, setPlayback] = useState(null)
   const [ready, setReady]     = useState(false)
+  const [activated, setActivated] = useState(false)
   const [sdkError, setSdkError] = useState(null)
   const playerRef = useRef(null)
   const hostNextRef = useRef(() => {})
@@ -101,11 +102,7 @@ export default function Player({ token, roomCode, role }) {
       })
       attachErrorListeners(p)
       p.addListener('ready', ({ device_id }) => {
-        fetch('https://api.spotify.com/v1/me/player', {
-          method: 'PUT',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ device_ids: [device_id], play: false }),
-        })
+        setDeviceId(device_id)
         playerRef.current = p
         setReady(true)
       })
@@ -131,7 +128,7 @@ export default function Player({ token, roomCode, role }) {
       const data = snapshot.val()
       if (!data) return
       setPlayback(data)
-      if (!data.trackUri || !ready) return
+      if (!data.trackUri || !ready || !activated) return
       if (data.isPlaying) {
         fetch('https://api.spotify.com/v1/me/player/play', {
           method: 'PUT',
@@ -146,7 +143,17 @@ export default function Player({ token, roomCode, role }) {
       }
     })
     return () => unsub()
-  }, [role, roomCode, token, ready])
+  }, [role, roomCode, token, ready, activated])
+
+  async function activateGuest() {
+    if (!deviceId) return
+    await fetch('https://api.spotify.com/v1/me/player', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_ids: [deviceId], play: false }),
+    })
+    setActivated(true)
+  }
 
   // Host — listen for guest events
   useEffect(() => {
@@ -248,8 +255,24 @@ export default function Player({ token, roomCode, role }) {
         </div>
       )}
 
-      {/* waiting as guest */}
-      {ready && !track && role === 'guest' && (
+      {/* guest: activate to enable audio */}
+      {ready && !activated && role === 'guest' && (
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+          <span style={{ fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+            connected ♡
+          </span>
+          <h2 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '2rem', fontWeight: 300, color: 'var(--deep)' }}>
+            join listening
+          </h2>
+          <p style={{ fontFamily: 'Cormorant Garamond, serif', fontStyle: 'italic', color: 'var(--mid)', marginBottom: '8px', maxWidth: '300px' }}>
+            tap to start hearing what the host is playing
+          </p>
+          <ActionBtn onClick={activateGuest}>join listening</ActionBtn>
+        </div>
+      )}
+
+      {/* waiting as guest, after activation */}
+      {ready && activated && !track && role === 'guest' && (
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontFamily: 'Cormorant Garamond, serif', fontStyle: 'italic', color: 'var(--mid)', fontSize: '1.2rem' }}>
             waiting for host to play something...

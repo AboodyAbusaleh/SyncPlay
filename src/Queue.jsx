@@ -8,6 +8,7 @@ export default function Queue({ token, roomCode, role, onPlayNow }) {
   const [results, setResults]   = useState([])
   const [queue, setQueue]       = useState([])
   const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState(null)
   const [open, setOpen]         = useState(false)
 
   useEffect(() => {
@@ -22,11 +23,19 @@ export default function Queue({ token, roomCode, role, onPlayNow }) {
   }, [roomCode])
 
   useEffect(() => {
-    if (!query.trim()) { setResults([]); setSearching(false); return }
+    if (!query.trim()) { setResults([]); setSearchError(null); setSearching(false); return }
     setSearching(true)
     const handle = setTimeout(async () => {
-      const tracks = await searchTracks(token, query)
-      setResults(tracks)
+      try {
+        const tracks = await searchTracks(token, query)
+        setResults(tracks)
+        setSearchError(null)
+      } catch (e) {
+        setResults([])
+        setSearchError(e.status === 401
+          ? 'session expired — log out and back in'
+          : 'search failed — try again')
+      }
       setSearching(false)
     }, 300)
     return () => clearTimeout(handle)
@@ -116,8 +125,37 @@ export default function Queue({ token, roomCode, role, onPlayNow }) {
             )}
           </div>
 
+          {/* search error */}
+          {searchError && (
+            <p style={{
+              fontFamily: 'Cormorant Garamond, serif',
+              fontStyle: 'italic',
+              color: 'var(--accent)',
+              fontSize: '0.95rem',
+              textAlign: 'center',
+              padding: '4px 0',
+            }}>
+              {searchError}
+            </p>
+          )}
+
+          {/* no results */}
+          {!searchError && query.trim() && !searching && results.length === 0 && (
+            <p style={{
+              fontFamily: 'Cormorant Garamond, serif',
+              fontStyle: 'italic',
+              color: 'var(--mid)',
+              fontSize: '0.95rem',
+              textAlign: 'center',
+              opacity: 0.7,
+              padding: '4px 0',
+            }}>
+              no results for "{query}"
+            </p>
+          )}
+
           {/* search results */}
-          {results.length > 0 && (
+          {!searchError && results.length > 0 && (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
