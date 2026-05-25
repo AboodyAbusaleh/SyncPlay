@@ -1,5 +1,5 @@
 const CLIENT_ID = 'e66cf8d8aef94100b4c615abc3d4bd27'
-const REDIRECT_URI = 'http://127.0.0.1:5173/callback'
+const REDIRECT_URI = window.location.origin + import.meta.env.BASE_URL
 const SCOPES = [
   'streaming',
   'user-read-email',
@@ -69,7 +69,7 @@ export async function handleCallback() {
   if (data.access_token) {
     localStorage.setItem('spotify_token', data.access_token)
     localStorage.removeItem('code_verifier')
-    window.history.replaceState({}, '', '/')
+    window.history.replaceState({}, '', import.meta.env.BASE_URL)
     return data.access_token
   }
   return null
